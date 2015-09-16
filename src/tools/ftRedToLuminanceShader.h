@@ -7,9 +7,9 @@
 
 namespace flowTools {
 	
-	class ftDisplayScalarShader : public ftShader {
+	class ftRedToLuminanceShader : public ftShader {
 	public:
-		ftDisplayScalarShader() {
+		ftRedToLuminanceShader() {
 			bInitialized = 1;
 			
 			if (ofGetGLProgrammableRenderer())
@@ -18,45 +18,45 @@ namespace flowTools {
 				glTwo();
 			
 			if (bInitialized)
-				ofLogNotice("ftDisplayScalarShader initialized");
+				ofLogNotice("ftRedToLuminanceShader initialized");
 			else
-				ofLogWarning("ftDisplayScalarShader failed to initialize");
+				ofLogWarning("ftRedToLuminanceShader failed to initialize");
 		}
 		
 	protected:
 		void glTwo() {
 			fragmentShader = GLSL120(
-								  uniform sampler2DRect FloatTexture;
-									   uniform float Scale;
-									   void main(){
-										   vec4	velocity = texture2DRect(FloatTexture, gl_TexCoord[0].st);
-										   velocity.xyz *= vec3(Scale);
-										   velocity.xyz += vec3(0.5);
-										   velocity.w = 1.0;
-										   gl_FragColor = velocity;
-									   }
-									   );
+								  uniform sampler2DRect RedTexture;
+								  uniform vec2	Scale;
+								  
+								  void main(){
+									  vec2 st = gl_TexCoord[0].st;
+									  vec2 st2 = st * Scale;
+									  
+									  vec4 color = texture2DRect(RedTexture, st);
+									  gl_FragColor = vec4(color.x, color.x, color.x, 1.0);
+								  }
+								  
+								  );
 			
 			bInitialized *= shader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShader);
 			bInitialized *= shader.linkProgram();
 		}
 		
 		void glThree() {
-			
 			fragmentShader = GLSL150(
-								  uniform sampler2DRect FloatTexture;
-								  uniform float Scale;
+								  uniform sampler2DRect RedTexture;
+								  uniform vec2	Scale;
 								  
 								  in vec2 texCoordVarying;
 								  out vec4 fragColor;
 								  
 								  void main(){
 									  vec2 st = texCoordVarying;
-									  vec4	velocity = texture(FloatTexture, st);
-									  velocity.xyz *= vec3(Scale);
-									  velocity.w = pow(length(velocity.xyz), 0.33);
-									  velocity.xyz += vec3(0.5);
-									  fragColor = velocity;
+									  vec2 st2 = st * Scale;
+									  
+									  vec4 color = texture(RedTexture, st);
+									  fragColor = vec4(color.x, color.x, color.x, 1.0);
 								  }
 								  );
 			
@@ -64,15 +64,15 @@ namespace flowTools {
 			bInitialized *= shader.setupShaderFromSource(GL_FRAGMENT_SHADER, fragmentShader);
 			bInitialized *= shader.bindDefaults();
 			bInitialized *= shader.linkProgram();
-			
 		}
-	
+		
 	public:
-		void update(ofFbo& _buffer, ofTexture& _floatTexture, float _scale){
+		
+		void update(ofFbo& _buffer, ofTexture& _redTexture){
 			_buffer.begin();
 			shader.begin();
-			shader.setUniformTexture("FloatTexture", _floatTexture, 0);
-			shader.setUniform1f("Scale", _scale);
+			shader.setUniformTexture("RedTexture", _redTexture, 0);
+			shader.setUniform2f("Scale", _redTexture.getWidth() / _buffer.getWidth(), _redTexture.getHeight()/ _buffer.getHeight());
 			renderFrame(_buffer.getWidth(), _buffer.getHeight());
 			shader.end();
 			_buffer.end();
