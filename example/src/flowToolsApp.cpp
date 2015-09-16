@@ -56,6 +56,8 @@ void flowToolsApp::setup(){
 	cameraFbo.allocate(drawWidth, drawHeight);
 	cameraFbo.begin(); ofClear(0); cameraFbo.end();
 	
+    ofFbo fbo;
+    
 	
 	setupGui();
 	
