@@ -40,6 +40,7 @@ namespace flowTools {
 		float	getMassSpread() { return massSpread.get(); }
 		float	getSize() { return size.get(); }
 		float	getSizeSpread() { return sizeSpread.get(); }
+        float   getTwinkleSpeed() { return twinkleSpeed.get(); }
 		
 		void	setSpeed(float value) { speed.set(value); }
 		void	setCellSize(float value) { cellSize.set(value); }
@@ -51,6 +52,7 @@ namespace flowTools {
 		void	setMassSpread(float value) { massSpread.set(value); }
 		void	setSize(float value) { size.set(value); }
 		void	setSizeSpread(float value) { sizeSpread.set(value); }
+        void    setTwinkleSpeed(float value) { twinklSpeed.set(value); }
 		
 		ofParameterGroup parameters;
 	private:
