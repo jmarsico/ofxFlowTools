@@ -4,7 +4,7 @@
 #include "ofMain.h"
 #include "ftFbo.h"
 
-using namespace flowTools;
+namespace flowTools {
 
 class ftAverageVelocity {
 public:
@@ -19,29 +19,28 @@ public:
 	void		update();
 	
 	ofVec2f		getDirection() { return direction; }
-	float		getAmplitude()  { return amplitude; }
-	float		getArea()	{ return area; }
+	float		getMagnitude()	{ return totalMagnitude; }
+	float		getAverageMagnitude()	{ return averageMagnitude; }
+	float		getHighMagnitude()	{ return highMagnitude; }
 	
 	ofParameterGroup parameters;
 	
 private:
-	ofParameter<int>	pWidth;
-	ofParameter<int>	pHeight;
-	ofParameter<ofVec2f> pDirection;
-	ofParameter<float>	pAmplitudeMultiplier;
-	ofParameter<float>	pAmplitude;
-	ofParameter<float>	pAreaTreshold;
-	ofParameter<float>	pArea;
+	ofParameter<ofVec2f>	pDirection;
+	ofParameter<float>		pMagnitude;
+	ofParameter<float>		pAverageMagnitude;
 	
-	void pWidthListner(int& _width) { setSize(_width, averageFbo.getHeight()); }
-	void pHeightListner(int& _height) { setSize(averageFbo.getHeight(), _height); }
+//	void pWidthListner(int& _width) { setSize(_width, averageFbo.getHeight()); }
+//	void pHeightListner(int& _height) { setSize(averageFbo.getHeight(), _height); }
 	
 	ftFbo		averageFbo;
-	float*		averageFloats;
+	float*		floatPixelData;
 	
 	ofVec2f		direction;
-	float		amplitude;
-	float		area;
+	float		totalMagnitude;
+	float		averageMagnitude;
+	float		highMagnitude;
 	
 	
 };
+}

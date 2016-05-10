@@ -7,9 +7,9 @@
 
 namespace flowTools {
 	
-	class ftAddForceShader : public ftShader {
+	class ftSplitVelocityShader : public ftShader {
 	public:
-		ftAddForceShader() {
+		ftSplitVelocityShader() {
 			bInitialized = 1;
 			
 			if (ofIsGLProgrammableRenderer())
@@ -18,25 +18,27 @@ namespace flowTools {
 				glTwo();
 			
 			if (bInitialized)
-				ofLogNotice("ftAddForceShader initialized");
+				ofLogNotice("ftSplitVelocityShader initialized");
 			else
-				ofLogWarning("ftAddForceShader failed to initialize");
+				ofLogWarning("ftSplitVelocityShader failed to initialize");
 		}
 		
 	protected:
 		void glTwo() {
 			fragmentShader = GLSL120(
-								  uniform sampler2DRect Backbuffer;
-								  uniform sampler2DRect AddTexture;
-								  uniform float force;
+								  uniform sampler2DRect VelocityTexture;
+								  uniform float Force;
 								  uniform vec2	Scale;
 								  
 								  void main(){
 									  vec2 st = gl_TexCoord[0].st;
 									  vec2 st2 = st * Scale;
 									  
-									  vec4 color = texture2DRect(Backbuffer, st) + texture2DRect(AddTexture, st2) * force;
-									  gl_FragColor = color ;
+									  vec2 velocity = texture2DRect(VelocityTexture, st2).xy * Force;
+									  vec2 pVel = max(velocity, vec2(0,0));
+									  vec2 nVel = abs(min(velocity, vec2(0,0)));
+									  
+									  gl_FragColor = vec4(pVel, nVel);
 								  }
 								  
 								  );
@@ -47,9 +49,8 @@ namespace flowTools {
 		
 		void glThree() {
 			fragmentShader = GLSL150(
-								  uniform sampler2DRect Backbuffer;
-								  uniform sampler2DRect AddTexture;
-								  uniform float force;
+								  uniform sampler2DRect VelocityTexture;
+								  uniform float Force;
 								  uniform vec2	Scale;
 								  
 								  in vec2 texCoordVarying;
@@ -59,8 +60,10 @@ namespace flowTools {
 									  vec2 st = texCoordVarying;
 									  vec2 st2 = st * Scale;
 									  
-									  vec4 color = texture(Backbuffer, st) + texture(AddTexture, st2) * force;
-									  fragColor = color ;
+									  vec2 velocity = texture(VelocityTexture, st2).xy * Force;
+									  vec2 pVel = max(velocity, vec2(0,0));
+									  vec2 nVel = abs(min(velocity, vec2(0,0)));
+									  fragColor = vec4(pVel, nVel);
 								  }
 								  );
 			
@@ -72,13 +75,12 @@ namespace flowTools {
 		
 	public:
 		
-		void update(ofFbo& _buffer, ofTexture& _backBufferTexture, ofTexture& _addTexture, float _force){
+		void update(ofFbo& _buffer, ofTexture& _velocityTexture, float _force){
 			_buffer.begin();
 			shader.begin();
-			shader.setUniformTexture("Backbuffer", _backBufferTexture, 0);
-			shader.setUniformTexture("AddTexture", _addTexture, 1);
-			shader.setUniform1f("force", _force);
-			shader.setUniform2f("Scale", _addTexture.getWidth() / _buffer.getWidth(), _addTexture.getHeight()/ _buffer.getHeight());
+			shader.setUniformTexture("VelocityTexture", _velocityTexture, 0);
+			shader.setUniform1f("Force", _force);
+			shader.setUniform2f("Scale", _velocityTexture.getWidth() / _buffer.getWidth(), _velocityTexture.getHeight()/ _buffer.getHeight());
 			renderFrame(_buffer.getWidth(), _buffer.getHeight());
 			shader.end();
 			_buffer.end();

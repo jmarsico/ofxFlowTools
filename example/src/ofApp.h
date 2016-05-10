@@ -4,8 +4,7 @@
 #include "ofxGui.h"
 #include "ofxFlowTools.h"
 
-#define USE_PROGRAMMABLE_GL					// Maybe there is a reason you would want to
-//#define USE_FASTER_INTERNAL_FORMATS			// about 15% faster but gives errors from ofGLUtils
+//#define USE_PROGRAMMABLE_GL
 
 using namespace flowTools;
 
@@ -13,6 +12,7 @@ enum drawModeEnum{
 	DRAW_COMPOSITE = 0,
 	DRAW_FLUID_DENSITY,
 	DRAW_PARTICLES,
+	DRAW_VELDOTS,
 	DRAW_FLUID_FIELDS,
 	DRAW_FLUID_VELOCITY,
 	DRAW_FLUID_PRESSURE,
@@ -27,7 +27,7 @@ enum drawModeEnum{
 	DRAW_MOUSE
 };
 
-class flowToolsApp : public ofBaseApp{
+class ofApp : public ofBaseApp{
 public:
 	void	setup();
 	void	update();
@@ -53,6 +53,8 @@ public:
 	ftVelocityMask		velocityMask;
 	ftFluidSimulation	fluidSimulation;
 	ftParticleFlow		particleFlow;
+	
+	ftVelocitySpheres	velocityDots;
 	
 	ofImage				flowToolsLogoImage;
 	bool				showLogo;
@@ -130,4 +132,7 @@ public:
 	void				drawSource(int _x, int _y, int _width, int _height);
 	void				drawMouseForces()		{ drawMouseForces(0, 0, ofGetWindowWidth(), ofGetWindowHeight()); }
 	void				drawMouseForces(int _x, int _y, int _width, int _height);
+	
+	void				drawVelocityDots()		{ drawVelocityDots(0, 0, ofGetWindowWidth(), ofGetWindowHeight()); }
+	void				drawVelocityDots(int _x, int _y, int _width, int _height);
 };

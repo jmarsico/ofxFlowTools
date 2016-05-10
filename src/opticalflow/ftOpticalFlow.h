@@ -5,6 +5,7 @@
 #include "ftSwapBuffer.h"
 #include "ftOpticalFlowShader.h"
 #include "ftTimeBlurShader.h"
+#include "ftDecayShader.h"
 
 namespace flowTools {
 	
@@ -16,9 +17,9 @@ namespace flowTools {
 		void		update(float _deltaTime = 0);
 		void		setSource(ofTexture& _tex);
 		
-		ofTexture&	getTextureReference() {return getOpticalFlow() ;};
-		ofTexture&	getOpticalFlow() {return velocityBuffer.getTextureReference();};
-		ofTexture&	getOpticalFlowDecay() {if(doTimeBlurDecay.get()) return decayBuffer.getTextureReference(); else return velocityBuffer.getTextureReference();
+		ofTexture&	getTexture() {return getOpticalFlow() ;};
+		ofTexture&	getOpticalFlow() {return velocityBuffer.getTexture();};
+		ofTexture&	getOpticalFlowDecay() {if(doTimeBlurDecay.get()) return decayBuffer.getTexture(); else return velocityBuffer.getTexture();
 											};
 //		int			getFlowVectorSize(){return width * height;};
 //		ofVec2f*	getFlowVectors();
@@ -76,6 +77,7 @@ namespace flowTools {
 		ftSwapBuffer		sourceSwapBuffer;
 		ftOpticalFlowShader opticalFlowShader;
 		ftTimeBlurShader	timeBlurShader;
+		ftDecayShader		decayShader;
 		
 		
 //		float*	flowFloats;

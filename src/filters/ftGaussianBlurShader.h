@@ -12,7 +12,7 @@ namespace flowTools {
 		ftGaussianBlurShader(){
 			bInitialized = 1;
 			
-			if (ofGetGLProgrammableRenderer())
+			if (ofIsGLProgrammableRenderer())
 				glThree();
 			else
 				glTwo();
@@ -161,32 +161,33 @@ namespace flowTools {
 		void update(ofFbo& _buffer, int _passes, int _radius){
 			if (pingPong.getWidth() != _buffer.getWidth() ||
 				pingPong.getHeight() != _buffer.getHeight() ||
-				pingPong.getInternalFormat() != _buffer.getTextureReference().getTextureData().glTypeInternal) {
+				pingPong.getInternalFormat() != _buffer.getTexture().getTextureData().glInternalFormat) {
 				
-				allocate(_buffer.getWidth(),  _buffer.getHeight(), _buffer.getTextureReference().getTextureData().glTypeInternal );
+				allocate(_buffer.getWidth(),  _buffer.getHeight(), _buffer.getTexture().getTextureData().glInternalFormat );
 				
 			}
 			
 			
-			pingPong.clear();
-			pingPong.src->stretchIntoMe(_buffer);
+			pingPong.black();
+			pingPong.getBuffer()->stretchIntoMe(_buffer);
+			pingPong.swap();
 	
 			for(int i = 0; i < _passes; i++) {
 				for(int j = 0; j < 2; j++) {
-					pingPong.dst->begin();
+					pingPong.getBuffer()->begin();
 					blurShader[j].begin();
-					blurShader[j].setUniformTexture("backbuffer", pingPong.src->getTextureReference(), 0 );
+					blurShader[j].setUniformTexture("backbuffer", pingPong.getBackTexture(), 0 );
 					blurShader[j].setUniform1f("radius", _radius);
 					renderFrame(pingPong.getWidth(), pingPong.getHeight());
 					blurShader[j].end();
-					pingPong.dst->end();
+					pingPong.getBuffer()->end();
 					
 					pingPong.swap();
 				}
 			}
 	
 			_buffer.begin();
-			pingPong.src->draw(0,0, pingPong.getWidth(), pingPong.getHeight());
+			pingPong.getBackTexture().draw(0,0, pingPong.getWidth(), pingPong.getHeight());
 			_buffer.end();
 		}
 		
@@ -195,7 +196,7 @@ namespace flowTools {
 		
 		void allocate(int _width, int _height, int _internalFormat = GL_RGBA){
 			pingPong.allocate( _width, _height, _internalFormat);
-			pingPong.clear();
+			pingPong.black();
 		}
 		
 		ofShader    blurShader[2];

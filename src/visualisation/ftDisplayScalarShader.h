@@ -12,7 +12,7 @@ namespace flowTools {
 		ftDisplayScalarShader() {
 			bInitialized = 1;
 			
-			if (ofGetGLProgrammableRenderer())
+			if (ofIsGLProgrammableRenderer())
 				glThree();
 			else
 				glTwo();
@@ -31,8 +31,8 @@ namespace flowTools {
 									   void main(){
 										   vec4	velocity = texture2DRect(FloatTexture, gl_TexCoord[0].st);
 										   velocity.xyz *= vec3(Scale);
+										   velocity.w = pow(length(velocity.xyz), 0.33);
 										   velocity.xyz += vec3(0.5);
-										   velocity.w = 1.0;
 										   gl_FragColor = velocity;
 									   }
 									   );

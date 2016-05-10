@@ -50,7 +50,7 @@ namespace flowTools {
 		parameters.add(twinkleSpeed.set("twinkle speed", 11, 0, 20));
 	}
 	
-	void ftParticleFlow::setup(int _simulationWidth, int _simulationHeight, int _numParticlesX, int _numParticlesY, bool _doFasterInternalFormat) {
+	void ftParticleFlow::setup(int _simulationWidth, int _simulationHeight, int _numParticlesX, int _numParticlesY) {
 		simulationWidth = _simulationWidth;
 		simulationHeight = _simulationHeight;
 		numParticlesX = _numParticlesX;
@@ -65,36 +65,30 @@ namespace flowTools {
 			}
 		}
 		
-		int internalFormatVelocity;
-		if (_doFasterInternalFormat) {
-			internalFormatVelocity = GL_RG32F;
-			
-		}
-		else {
-			internalFormatVelocity = GL_RGB32F;
-		}
+		int internalFormatVelocity = GL_RG32F;
 		
 		ofPushStyle();
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);  // Why?
 		
 		
 		particleAgeLifespanMassSizeSwapBuffer.allocate(numParticlesX, numParticlesY, GL_RGBA32F, GL_NEAREST);
-		particleAgeLifespanMassSizeSwapBuffer.clear();
+		particleAgeLifespanMassSizeSwapBuffer.black();
 		particlePositionSwapBuffer.allocate(numParticlesX, numParticlesY, internalFormatVelocity, GL_NEAREST);
-		particlePositionSwapBuffer.clear();
-		initPositionShader.update(*particlePositionSwapBuffer.src);
+		particlePositionSwapBuffer.black();
+		initPositionShader.update(*particlePositionSwapBuffer.getBuffer());
+		particlePositionSwapBuffer.swap();
 		particleHomeBuffer.allocate(numParticlesX, numParticlesY, internalFormatVelocity);
-		particleHomeBuffer.clear();
+		particleHomeBuffer.black();
 		initPositionShader.update(particleHomeBuffer);
 		
 		fluidVelocitySwapBuffer.allocate(simulationWidth, simulationHeight, internalFormatVelocity);
-		fluidVelocitySwapBuffer.clear();
+		fluidVelocitySwapBuffer.black();
 		flowVelocitySwapBuffer.allocate(simulationWidth, simulationHeight, internalFormatVelocity);
-		flowVelocitySwapBuffer.clear();
+		flowVelocitySwapBuffer.black();
 		densitySwapBuffer.allocate(simulationWidth, simulationHeight, GL_RGBA32F);
-		densitySwapBuffer.clear();
+		densitySwapBuffer.black();
 		obstacleBuffer.allocate(simulationWidth, simulationHeight, GL_RGB); // GL_RED??
-		obstacleBuffer.clear();
+		obstacleBuffer.black();
 		
 		ofPopStyle();
 		
@@ -115,12 +109,12 @@ namespace flowTools {
 			ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 			
 			
-			ALMSParticleShader.update(*particleAgeLifespanMassSizeSwapBuffer.dst,
-									   particleAgeLifespanMassSizeSwapBuffer.src->getTextureReference(),
-									   particlePositionSwapBuffer.src->getTextureReference(),
-									   flowVelocitySwapBuffer.src->getTextureReference(),
-									   densitySwapBuffer.src->getTextureReference(),
-									   obstacleBuffer.getTextureReference(),
+			ALMSParticleShader.update(*particleAgeLifespanMassSizeSwapBuffer.getBuffer(),
+									   particleAgeLifespanMassSizeSwapBuffer.getBackTexture(),
+									   particlePositionSwapBuffer.getBackTexture(),
+									   flowVelocitySwapBuffer.getBackTexture(),
+									   densitySwapBuffer.getBackTexture(),
+									   obstacleBuffer.getTexture(),
 									   deltaTime,
 									   birthChance.get(),
 									   birthVelocityChance.get(),
@@ -130,21 +124,22 @@ namespace flowTools {
 			particleAgeLifespanMassSizeSwapBuffer.swap();
 			
 		
-			moveParticleShader.update(*particlePositionSwapBuffer.dst,
-									  particlePositionSwapBuffer.src->getTextureReference(),
-									  particleAgeLifespanMassSizeSwapBuffer.src->getTextureReference(),
-									  fluidVelocitySwapBuffer.src->getTextureReference(),
-									  particleHomeBuffer.getTextureReference(),
+
+			moveParticleShader.update(*particlePositionSwapBuffer.getBuffer(),
+									  particlePositionSwapBuffer.getBackTexture(),
+									  particleAgeLifespanMassSizeSwapBuffer.getBackTexture(),
+									  fluidVelocitySwapBuffer.getBackTexture(),
+									  particleHomeBuffer.getTexture(),
 									  timeStep,
 									  cellSize.get());
 			particlePositionSwapBuffer.swap();
 			
 			ofPopStyle();
 	 
-			flowVelocitySwapBuffer.clear();
-			fluidVelocitySwapBuffer.clear();
-			densitySwapBuffer.clear();
-			obstacleBuffer.clear();
+			flowVelocitySwapBuffer.black();
+			fluidVelocitySwapBuffer.black();
+			densitySwapBuffer.black();
+			obstacleBuffer.black();
 		}
 	}
 	
@@ -152,7 +147,7 @@ namespace flowTools {
 		ofPushView();
 		ofTranslate(_x, _y);
 		ofScale(_width / numParticlesX, _height / numParticlesY);
-		drawParticleShader.update(particleMesh, numParticles, particlePositionSwapBuffer.src->getTextureReference(), particleAgeLifespanMassSizeSwapBuffer.src->getTextureReference(), twinkleSpeed.get());
+		drawParticleShader.update(particleMesh, numParticles, particlePositionSwapBuffer.getBackTexture(), particleAgeLifespanMassSizeSwapBuffer.getBackTexture(), twinkleSpeed.get());
 		
 		ofPopView();
 	}
@@ -160,8 +155,8 @@ namespace flowTools {
 	void ftParticleFlow::addFlowVelocity(ofTexture & _tex, float _strength) {
 		ofPushStyle();
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-		addShader.update(*flowVelocitySwapBuffer.dst,
-						 flowVelocitySwapBuffer.src->getTextureReference(),
+		addShader.update(*flowVelocitySwapBuffer.getBuffer(),
+						 flowVelocitySwapBuffer.getBackTexture(),
 						 _tex,
 						 _strength);
 		flowVelocitySwapBuffer.swap();
@@ -171,8 +166,8 @@ namespace flowTools {
 	void ftParticleFlow::addFluidVelocity (ofTexture& _tex, float _strength) {
 		ofPushStyle();
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-		addShader.update(*fluidVelocitySwapBuffer.dst,
-						 fluidVelocitySwapBuffer.src->getTextureReference(),
+		addShader.update(*fluidVelocitySwapBuffer.getBuffer(),
+						 fluidVelocitySwapBuffer.getBackTexture(),
 						 _tex,
 						 _strength);
 		fluidVelocitySwapBuffer.swap();
@@ -182,7 +177,7 @@ namespace flowTools {
 	void ftParticleFlow::setObstacle (ofTexture& _tex) {
 		ofPushStyle();
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-		obstacleBuffer.clear();
+		obstacleBuffer.black();
 		obstacleBuffer.begin();
 		_tex.draw(0,0,simulationWidth,simulationHeight);
 		obstacleBuffer.end();

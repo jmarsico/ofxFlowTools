@@ -39,16 +39,16 @@ namespace flowTools {
 		height = _height;
 		
 		colorMaskSwapBuffer.allocate(width, height, GL_RGBA);
-		colorMaskSwapBuffer.clear();
+		colorMaskSwapBuffer.black();
 		
 		luminanceMaskFbo.allocate(width, height, GL_RGB);
-		luminanceMaskFbo.clear();
+		luminanceMaskFbo.black();
 		
 		bVelocityTextureSet = false;
 		bDensityTextureSet = false;
 		
 		parameters.setName("velocity mask");
-		parameters.add(strength.set("strength", 5.5, 0, 10));
+		parameters.add(strength.set("strength", 2.5, 0, 10));
 		parameters.add(saturation.set("saturation", 3, 1, 5));
 		parameters.add(blurPasses.set("blur passes", 3, 0, 10));
 		parameters.add(blurRadius.set("blur radius", 5, 0, 10));
@@ -58,26 +58,26 @@ namespace flowTools {
 	void ftVelocityMask::update() {
 		ofPushStyle();
 		ofEnableBlendMode(OF_BLENDMODE_ALPHA);
-		colorMaskSwapBuffer.clear();
+		colorMaskSwapBuffer.black();
 		
 		if (!bVelocityTextureSet || !bDensityTextureSet) {
 			ofLogVerbose("ftVelocityMask: velocity or density texture not set, can't update");
 		}
 		else {
-			VelocityMaskShader.update(*colorMaskSwapBuffer.src, *densityTexture, *velocityTexture, strength.get());
-			HSLShader.update(*colorMaskSwapBuffer.dst,
-							 colorMaskSwapBuffer.src->getTextureReference(),
+			VelocityMaskShader.update(*colorMaskSwapBuffer.getBuffer(), *densityTexture, *velocityTexture, strength.get());
+			HSLShader.update(*colorMaskSwapBuffer.getBuffer(),
+							 colorMaskSwapBuffer.getBackTexture(),
 							 0,
 							 saturation.get(),
 							 1);
 			colorMaskSwapBuffer.swap();
 			
 			if (blurPasses.get() > 0 && blurRadius.get() > 0) {
-				gaussianBlurShader.update(*colorMaskSwapBuffer.src, blurPasses.get(), blurRadius.get());
+				gaussianBlurShader.update(*colorMaskSwapBuffer.getBuffer(), blurPasses.get(), blurRadius.get());
 			}
 			
 			ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-			luminanceShader.update(luminanceMaskFbo, colorMaskSwapBuffer.src->getTextureReference());
+			luminanceShader.update(luminanceMaskFbo, colorMaskSwapBuffer.getBackTexture());
 		}
 		
 		ofPopStyle();

@@ -38,19 +38,19 @@ namespace flowTools {
 	
 	ftOpticalFlow::ftOpticalFlow(){
 		parameters.setName("optical flow");
-		parameters.add(strength.set("strength", 50, 0, 100));
+		parameters.add(strength.set("strength", 10, 0, 100));
 		parameters.add(offset.set("offset", 3, 1, 10));
-		parameters.add(lambda.set("lambda", 0.01, 0, 0.1));
+		parameters.add(lambda.set("lambda", 0.01, 0.1, 1));
 		parameters.add(threshold.set("threshold", 0.02, 0, 0.2));
 		parameters.add(doInverseX.set("inverse x", false));
 		parameters.add(doInverseY.set("inverse y", false));
-		parameters.add(doTimeBlurDecay.set("do time blur", true));
-		timeBlurParameters.setName("time blur");
-		timeBlurParameters.add(timeBlurDecay.set("Decay", 0.1, 0, 1));
-		timeBlurParameters.add(timeBlurRadius.set("Decay Blur Radius", 2, 0, 10));
+//		parameters.add(doTimeBlurDecay.set("do time blur", true));
+		doTimeBlurDecay.set("do time blur", true);
+		timeBlurParameters.setName("time decay blur");
+		timeBlurParameters.add(timeBlurDecay.set("decay", 3, 0, 10));
+		timeBlurParameters.add(timeBlurRadius.set("blur radius", 3, 0, 10));
 		parameters.add(timeBlurParameters);
 		
-//		flowVectorsDidUpdate = false;
 		lastTime = ofGetElapsedTimef();
 	};
 	
@@ -60,12 +60,12 @@ namespace flowTools {
 				
 		sourceSwapBuffer.allocate(width, height);
 		velocityBuffer.allocate(width, height, GL_RGB32F);
-		velocityBuffer.clear();
+		velocityBuffer.black();
 		
 		velocityTexture.allocate(width, height, GL_RGB32F);
 		
 		decayBuffer.allocate(width, height, GL_RGB32F);
-		decayBuffer.clear();
+		decayBuffer.black();
 		
 //		flowVectors = new ofVec2f[int(width * height)];
 //		flowFloats = new float [int(width * height) * 2];
@@ -93,8 +93,8 @@ namespace flowTools {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 		
 		opticalFlowShader.update(velocityBuffer,
-								 sourceSwapBuffer.src->getTextureReference(),
-								 sourceSwapBuffer.dst->getTextureReference(),
+								 sourceSwapBuffer.getTexture(),
+								 sourceSwapBuffer.getBackTexture(),
 								 timeStep,
 								 offset.get(),
 								 lambda.get(),
@@ -103,8 +103,8 @@ namespace flowTools {
 								 inverseY);
 		
 		decayBuffer.drawIntoMe(velocityBuffer);
-		timeBlurShader.update(decayBuffer, timeBlurDecay, timeBlurRadius);
-				
+		timeBlurShader.update(decayBuffer, timeBlurDecay * deltaTime, timeBlurRadius);
+
 		ofPopStyle();
 	}
 	
@@ -113,43 +113,17 @@ namespace flowTools {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 		
 		sourceSwapBuffer.swap();
-		sourceSwapBuffer.src->stretchIntoMe(_tex);
+		sourceSwapBuffer.getBuffer()->stretchIntoMe(_tex);
 		
 		if (!bSourceSet) { // on start set both buffers
 			bSourceSet = true;
-			sourceSwapBuffer.dst->stretchIntoMe(_tex);
+			sourceSwapBuffer.swap();
+			sourceSwapBuffer.getBuffer()->stretchIntoMe(_tex);
 		}
 		
 		ofPopStyle();
 		
 	}
 	
-/* MOVED TO FTAVERAGEVELOCITY
- 
-	ofVec2f* ftOpticalFlow::getFlowVectors(){
-		if (!flowVectorsDidUpdate) {
-			velocityBuffer.bind();
-			glReadPixels(0, 0, width, height, GL_RG, GL_FLOAT, flowFloats);
-			velocityBuffer.unbind();
-			
-			for (int i=0; i<width * height; i++) {
-				flowVectors[i] = ofVec2f(flowFloats[i * 2], flowFloats[i * 2 + 1]);
-			}
-		}
-		flowVectorsDidUpdate = true;
-		
-		return flowVectors;
-	}
-	
-	float ftOpticalFlow::getAverageFlow(){
-		getFlowVectors();
-		float avgFlow = 0;
-		for (int i=0; i<width * height; i++) {
-			avgFlow += flowVectors[i].length();
-		}
-		avgFlow /= width * height;
-		return avgFlow;
-	}
- */
 	
 }

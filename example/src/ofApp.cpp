@@ -1,7 +1,7 @@
-#include "flowToolsApp.h"
+#include "ofApp.h"
 
 //--------------------------------------------------------------
-void flowToolsApp::setup(){
+void ofApp::setup(){
 	
 	ofSetVerticalSync(false);
 	ofSetLogLevel(OF_LOG_NOTICE);
@@ -17,17 +17,14 @@ void flowToolsApp::setup(){
 	velocityMask.setup(drawWidth, drawHeight);
 	
 	// FLUID & PARTICLES
-#ifdef USE_FASTER_INTERNAL_FORMATS
-	fluidSimulation.setup(flowWidth, flowHeight, drawWidth, drawHeight, true);
-	particleFlow.setup(flowWidth, flowHeight, drawWidth, drawHeight, true);
-#else
-	fluidSimulation.setup(flowWidth, flowHeight, drawWidth, drawHeight, false);
-	particleFlow.setup(flowWidth, flowHeight, drawWidth, drawHeight, false);
-#endif
+	fluidSimulation.setup(flowWidth, flowHeight, drawWidth, drawHeight);
+	particleFlow.setup(flowWidth, flowHeight, drawWidth, drawHeight);
 	
-	flowToolsLogoImage.loadImage("flowtools.png");
-	fluidSimulation.addObstacle(flowToolsLogoImage.getTextureReference());
+	flowToolsLogoImage.load("flowtools.png");
+	fluidSimulation.addObstacle(flowToolsLogoImage.getTexture());
 	showLogo = true;
+	
+	velocityDots.setup(flowWidth / 4, flowHeight / 4);
 	
 	// VISUALIZATION
 	displayScalar.setup(flowWidth, flowHeight);
@@ -40,11 +37,11 @@ void flowToolsApp::setup(){
 	mouseForces.setup(flowWidth, flowHeight, drawWidth, drawHeight);
 	
 	// CAMERA
-	simpleCam.initGrabber(640, 480, true);
+	simpleCam.setup(640, 480, true);
 	didCamUpdate = false;
 
 	cameraFbo.allocate(640, 480);
-	cameraFbo.clear();
+	cameraFbo.black();
 	
 	// GUI
 	setupGui();
@@ -54,7 +51,7 @@ void flowToolsApp::setup(){
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::setupGui() {
+void ofApp::setupGui() {
 	
 	gui.setup("settings");
 	gui.setDefaultBackgroundColor(ofColor(0, 0, 0, 127));
@@ -62,12 +59,12 @@ void flowToolsApp::setupGui() {
 	gui.add(guiFPS.set("average FPS", 0, 0, 60));
 	gui.add(guiMinFPS.set("minimum FPS", 0, 0, 60));
 	gui.add(doFullScreen.set("fullscreen (F)", false));
-	doFullScreen.addListener(this, &flowToolsApp::setFullScreen);
+	doFullScreen.addListener(this, &ofApp::setFullScreen);
 	gui.add(toggleGuiDraw.set("show gui (G)", false));
 	gui.add(doFlipCamera.set("flip camera", true));
 	gui.add(doDrawCamBackground.set("draw camera (C)", true));
 	gui.add(drawMode.set("draw mode", DRAW_COMPOSITE, DRAW_COMPOSITE, DRAW_MOUSE));
-	drawMode.addListener(this, &flowToolsApp::drawModeSetName);
+	drawMode.addListener(this, &ofApp::drawModeSetName);
 	gui.add(drawName.set("MODE", "draw name"));
 		
 	
@@ -112,21 +109,26 @@ void flowToolsApp::setupGui() {
 	visualizeParameters.setName("visualizers");
 	visualizeParameters.add(showScalar.set("show scalar", true));
 	visualizeParameters.add(showField.set("show field", true));
-	visualizeParameters.add(displayScalarScale.set("scalar scale", 0.15, 0.05, 0.5));
-	displayScalarScale.addListener(this, &flowToolsApp::setDisplayScalarScale);
+	visualizeParameters.add(displayScalarScale.set("scalar scale", 0.15, 0.05, 1.0));
+	displayScalarScale.addListener(this, &ofApp::setDisplayScalarScale);
 	visualizeParameters.add(velocityFieldScale.set("velocity scale", 0.1, 0.0, 0.5));
-	velocityFieldScale.addListener(this, &flowToolsApp::setVelocityFieldScale);
+	velocityFieldScale.addListener(this, &ofApp::setVelocityFieldScale);
 	visualizeParameters.add(temperatureFieldScale.set("temperature scale", 0.1, 0.0, 0.5));
-	temperatureFieldScale.addListener(this, &flowToolsApp::setTemperatureFieldScale);
+	temperatureFieldScale.addListener(this, &ofApp::setTemperatureFieldScale);
 	visualizeParameters.add(pressureFieldScale.set("pressure scale", 0.02, 0.0, 0.5));
-	pressureFieldScale.addListener(this, &flowToolsApp::setPressureFieldScale);
+	pressureFieldScale.addListener(this, &ofApp::setPressureFieldScale);
 	visualizeParameters.add(velocityLineSmooth.set("line smooth", false));
-	velocityLineSmooth.addListener(this, &flowToolsApp::setVelocityLineSmooth);
+	velocityLineSmooth.addListener(this, &ofApp::setVelocityLineSmooth);
 	
 	gui.setDefaultHeaderBackgroundColor(guiHeaderColor[guiColorSwitch]);
 	gui.setDefaultFillColor(guiFillColor[guiColorSwitch]);
 	guiColorSwitch = 1 - guiColorSwitch;
 	gui.add(visualizeParameters);
+	
+	gui.setDefaultHeaderBackgroundColor(guiHeaderColor[guiColorSwitch]);
+	gui.setDefaultFillColor(guiFillColor[guiColorSwitch]);
+	guiColorSwitch = 1 - guiColorSwitch;
+	gui.add(velocityDots.parameters);
 
 	// if the settings file is not present the parameters will not be set during this setup
 	if (!ofFile("settings.xml"))
@@ -140,7 +142,7 @@ void flowToolsApp::setupGui() {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::update(){
+void ofApp::update(){
 	
 	deltaTime = ofGetElapsedTimef() - lastTime;
 	lastTime = ofGetElapsedTimef();
@@ -159,10 +161,13 @@ void flowToolsApp::update(){
 		cameraFbo.end();
 		ofPopStyle();
 		
-		opticalFlow.setSource(cameraFbo.getTextureReference());
-		opticalFlow.update(deltaTime);
+		opticalFlow.setSource(cameraFbo.getTexture());
 		
-		velocityMask.setDensity(cameraFbo.getTextureReference());
+		// opticalFlow.update(deltaTime);
+		// use internal deltatime instead
+		opticalFlow.update();
+		
+		velocityMask.setDensity(cameraFbo.getTexture());
 		velocityMask.setVelocity(opticalFlow.getOpticalFlow());
 		velocityMask.update();
 	}
@@ -213,7 +218,7 @@ void flowToolsApp::update(){
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::keyPressed(int key){
+void ofApp::keyPressed(int key){
 	switch (key) {
 		case 'G':
 		case 'g': toggleGuiDraw = !toggleGuiDraw; break;
@@ -234,7 +239,7 @@ void flowToolsApp::keyPressed(int key){
 		case 'r':
 		case 'R':
 			fluidSimulation.reset();
-			fluidSimulation.addObstacle(flowToolsLogoImage.getTextureReference());
+			fluidSimulation.addObstacle(flowToolsLogoImage.getTexture());
 			mouseForces.reset();
 			break;
 			
@@ -243,7 +248,7 @@ void flowToolsApp::keyPressed(int key){
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawModeSetName(int &_value) {
+void ofApp::drawModeSetName(int &_value) {
 	switch(_value) {
 		case DRAW_COMPOSITE:		drawName.set("Composite      (1)"); break;
 		case DRAW_PARTICLES:		drawName.set("Particles      "); break;
@@ -260,11 +265,12 @@ void flowToolsApp::drawModeSetName(int &_value) {
 		case DRAW_FLOW_MASK:		drawName.set("Flow Mask      (7)"); break;
 		case DRAW_SOURCE:			drawName.set("Source         "); break;
 		case DRAW_MOUSE:			drawName.set("Left Mouse     (8)"); break;
+		case DRAW_VELDOTS:			drawName.set("VelDots        (0)"); break;
 	}
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::draw(){
+void ofApp::draw(){
 	ofClear(0,0);
 	if (doDrawCamBackground.get())
 		drawSource();
@@ -292,13 +298,14 @@ void flowToolsApp::draw(){
 			case DRAW_OPTICAL_FLOW: drawOpticalFlow(); break;
 			case DRAW_SOURCE: drawSource(); break;
 			case DRAW_MOUSE: drawMouseForces(); break;
+			case DRAW_VELDOTS: drawVelocityDots(); break;
 		}
 		drawGui();
 	}
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawComposite(int _x, int _y, int _width, int _height) {
+void ofApp::drawComposite(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	
 	ofEnableBlendMode(OF_BLENDMODE_ADD);
@@ -316,7 +323,7 @@ void flowToolsApp::drawComposite(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawParticles(int _x, int _y, int _width, int _height) {
+void ofApp::drawParticles(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofEnableBlendMode(OF_BLENDMODE_ALPHA);
 	if (particleFlow.isActive())
@@ -325,7 +332,7 @@ void flowToolsApp::drawParticles(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidFields(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidFields(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	
 	ofEnableBlendMode(OF_BLENDMODE_ALPHA);
@@ -340,7 +347,7 @@ void flowToolsApp::drawFluidFields(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidDensity(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidDensity(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	
 	fluidSimulation.draw(_x, _y, _width, _height);
@@ -349,11 +356,12 @@ void flowToolsApp::drawFluidDensity(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidVelocity(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidVelocity(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	if (showScalar.get()) {
-		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-//		ofEnableBlendMode(OF_BLENDMODE_ALPHA); // altenate mode
+		ofClear(0,0);
+		ofEnableBlendMode(OF_BLENDMODE_ALPHA);
+	//	ofEnableBlendMode(OF_BLENDMODE_DISABLED); // altenate mode
 		displayScalar.setSource(fluidSimulation.getVelocity());
 		displayScalar.draw(_x, _y, _width, _height);
 	}
@@ -366,7 +374,7 @@ void flowToolsApp::drawFluidVelocity(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidPressure(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidPressure(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofClear(128);
 	if (showScalar.get()) {
@@ -383,7 +391,7 @@ void flowToolsApp::drawFluidPressure(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidTemperature(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidTemperature(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	if (showScalar.get()) {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
@@ -399,7 +407,7 @@ void flowToolsApp::drawFluidTemperature(int _x, int _y, int _width, int _height)
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidDivergence(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidDivergence(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	if (showScalar.get()) {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
@@ -415,7 +423,7 @@ void flowToolsApp::drawFluidDivergence(int _x, int _y, int _width, int _height) 
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidVorticity(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidVorticity(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	if (showScalar.get()) {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
@@ -432,7 +440,7 @@ void flowToolsApp::drawFluidVorticity(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidBuoyance(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidBuoyance(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	if (showScalar.get()) {
 		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
@@ -448,7 +456,7 @@ void flowToolsApp::drawFluidBuoyance(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawFluidObstacle(int _x, int _y, int _width, int _height) {
+void ofApp::drawFluidObstacle(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 	fluidSimulation.getObstacle().draw(_x, _y, _width, _height);
@@ -456,7 +464,7 @@ void flowToolsApp::drawFluidObstacle(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawMask(int _x, int _y, int _width, int _height) {
+void ofApp::drawMask(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 	velocityMask.draw(_x, _y, _width, _height);
@@ -464,13 +472,10 @@ void flowToolsApp::drawMask(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawOpticalFlow(int _x, int _y, int _width, int _height) {
-	
+void ofApp::drawOpticalFlow(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
-//	opticalFlow.getOpticalFlow().draw(_x, _y, _width, _height);
-	
 	if (showScalar.get()) {
-		ofEnableBlendMode(OF_BLENDMODE_DISABLED);
+		ofEnableBlendMode(OF_BLENDMODE_ALPHA);
 		displayScalar.setSource(opticalFlow.getOpticalFlowDecay());
 		displayScalar.draw(0, 0, _width, _height);
 	}
@@ -483,7 +488,7 @@ void flowToolsApp::drawOpticalFlow(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawSource(int _x, int _y, int _width, int _height) {
+void ofApp::drawSource(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofEnableBlendMode(OF_BLENDMODE_DISABLED);
 	cameraFbo.draw(_x, _y, _width, _height);
@@ -491,7 +496,7 @@ void flowToolsApp::drawSource(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawMouseForces(int _x, int _y, int _width, int _height) {
+void ofApp::drawMouseForces(int _x, int _y, int _width, int _height) {
 	ofPushStyle();
 	ofClear(0,0);
 	
@@ -530,7 +535,16 @@ void flowToolsApp::drawMouseForces(int _x, int _y, int _width, int _height) {
 }
 
 //--------------------------------------------------------------
-void flowToolsApp::drawGui() {
+void ofApp::drawVelocityDots(int _x, int _y, int _width, int _height) {
+	ofPushStyle();
+	ofEnableBlendMode(OF_BLENDMODE_ADD);
+	velocityDots.setVelocity(fluidSimulation.getVelocity());
+	velocityDots.draw(_x, _y, _width, _height);
+	ofPopStyle();
+}
+
+//--------------------------------------------------------------
+void ofApp::drawGui() {
 	guiFPS = (int)(ofGetFrameRate() + 0.5);
 	
 	// calculate minimum fps
@@ -554,9 +568,9 @@ void flowToolsApp::drawGui() {
 	
 	// HACK TO COMPENSATE FOR DISSAPEARING MOUSE
 	ofEnableBlendMode(OF_BLENDMODE_SUBTRACT);
-	ofCircle(ofGetMouseX(), ofGetMouseY(), ofGetWindowWidth() / 300.0);
+	ofDrawCircle(ofGetMouseX(), ofGetMouseY(), ofGetWindowWidth() / 300.0);
 	ofEnableBlendMode(OF_BLENDMODE_ADD);
-	ofCircle(ofGetMouseX(), ofGetMouseY(), ofGetWindowWidth() / 600.0);
+	ofDrawCircle(ofGetMouseX(), ofGetMouseY(), ofGetWindowWidth() / 600.0);
 	ofPopStyle();
 }
 

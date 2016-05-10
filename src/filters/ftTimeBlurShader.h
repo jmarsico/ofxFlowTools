@@ -4,6 +4,7 @@
 #include "ofMain.h"
 #include "ftShader.h"
 #include "ftSwapBuffer.h"
+#include "ftDecayShader.h"
 
 namespace flowTools {
 	
@@ -16,7 +17,7 @@ namespace flowTools {
 			
 			bInitialized = 1;
 			
-			if (ofGetGLProgrammableRenderer())
+			if (ofIsGLProgrammableRenderer())
 				glThree();
 			else
 				glTwo();
@@ -161,42 +162,45 @@ namespace flowTools {
 	public:
 		
 		
-		void update(ofFbo& _buffer, float _decay, int _radius = 5, int _passes = 1){
+		void update(ftFbo& _buffer, float _decay, int _radius = 5, int _passes = 1){
 			if (pingPong.getWidth() != _buffer.getWidth() ||
 				pingPong.getHeight() != _buffer.getHeight() ||
-				pingPong.getInternalFormat() != _buffer.getTextureReference().getTextureData().glTypeInternal) {
-				pingPong.allocate(_buffer.getWidth(),  _buffer.getHeight(), _buffer.getTextureReference().getTextureData().glTypeInternal );
+				pingPong.getInternalFormat() != _buffer.getTexture().getTextureData().glInternalFormat) {
+				pingPong.allocate(_buffer.getWidth(),  _buffer.getHeight(), _buffer.getTexture().getTextureData().glInternalFormat );
 				
 			}
 			
-			
 			ofPushStyle();
-			ofEnableBlendMode(OF_BLENDMODE_ALPHA);
-			pingPong.src->begin();
-			ofSetColor(0,0,0,255 * _decay);
-			ofRect(0,0, pingPong.getWidth(), pingPong.getHeight());
-			ofEnableBlendMode(OF_BLENDMODE_ADD);
-			ofSetColor(255, 255, 255, 255);
-			_buffer.draw(0,0, pingPong.getWidth(), pingPong.getHeight());
-			pingPong.src->end();
-			
 			ofEnableBlendMode(OF_BLENDMODE_DISABLED);
-			for(int i = 0; i < _passes; i++) {
-				for(int j = 0; j < 2; j++) {
-					pingPong.dst->begin();
-					blurShader[j].begin();
-					blurShader[j].setUniformTexture("backbuffer", pingPong.src->getTextureReference(), 0 );
-					blurShader[j].setUniform1f("radius", _radius);
-					renderFrame(pingPong.getWidth(), pingPong.getHeight());
-					blurShader[j].end();
-					pingPong.dst->end();
-					
-					pingPong.swap();
+			
+			if (_decay > 0) {
+				pingPong.swap();
+				decayShader.update(*pingPong.getBuffer(), pingPong.getBackTexture(), _buffer.getTexture(), _decay);
+			}
+			else {
+				pingPong.getBuffer()->black();
+				pingPong.getBuffer()->begin();
+				_buffer.getTexture().draw(0, 0, pingPong.getWidth(), pingPong.getHeight());
+				pingPong.getBuffer()->end();
+			}
+			
+			if (_radius > 0 && _passes > 0) {
+				for(int i = 0; i < _passes; i++) {
+					for(int j = 0; j < 2; j++) {
+						pingPong.swap();
+						pingPong.getBuffer()->begin();
+						blurShader[j].begin();
+						blurShader[j].setUniformTexture("backbuffer", pingPong.getBackTexture(), 0 );
+						blurShader[j].setUniform1f("radius", _radius);
+						renderFrame(pingPong.getWidth(), pingPong.getHeight());
+						blurShader[j].end();
+						pingPong.getBuffer()->end();
+					}
 				}
 			}
 			
 			_buffer.begin();
-			pingPong.src->draw(0,0, pingPong.getWidth(), pingPong.getHeight());
+			pingPong.getTexture().draw(0,0, pingPong.getWidth(), pingPong.getHeight());
 			_buffer.end();
 			
 			ofPopStyle();
@@ -212,6 +216,7 @@ namespace flowTools {
 		
 		ofShader    blurShader[2];
 		ftSwapBuffer pingPong;
+		ftDecayShader	decayShader;
 		
 		int		internalFormat;
 		int		width;

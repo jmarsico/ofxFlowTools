@@ -14,8 +14,12 @@ namespace flowTools {
 	ftDrawMouseForces::ftDrawMouseForces() {
 		ofAddListener(ofEvents().mouseMoved, this, &ftDrawMouseForces::mouseMoved);
 		ofAddListener(ofEvents().mouseDragged, this, &ftDrawMouseForces::mouseDragged);
-		
 	}
+    
+    ftDrawMouseForces::~ftDrawMouseForces() {
+        ofRemoveListener(ofEvents().mouseMoved, this, &ftDrawMouseForces::mouseMoved);
+        ofRemoveListener(ofEvents().mouseDragged, this, &ftDrawMouseForces::mouseDragged);
+    }
 	
 	void ftDrawMouseForces::setup(int _simulationWidth, int _simulationHeight, int _densityWidth, int _densityHeight) {
 		simulationWidth = _simulationWidth;
@@ -83,7 +87,7 @@ namespace flowTools {
 			ofLogError("ftDrawMouseForces::getTexture: index out of range");
 		}
 		else
-			return drawForces[_index].getTextureReference();
+			return drawForces[_index].getTexture();
 		
 	}
 	
