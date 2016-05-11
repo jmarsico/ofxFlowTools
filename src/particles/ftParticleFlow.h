@@ -52,7 +52,7 @@ namespace flowTools {
 		void	setMassSpread(float value) { massSpread.set(value); }
 		void	setSize(float value) { size.set(value); }
 		void	setSizeSpread(float value) { sizeSpread.set(value); }
-        void    setTwinkleSpeed(float value) { twinklSpeed.set(value); }
+        void    setTwinkleSpeed(float value) { twinkleSpeed.set(value); }
 		
 		ofParameterGroup parameters;
 	private:
